@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlobalPay | Currency Net-Payout Simulator</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2824959172169836"
+        crossorigin="anonymous"></script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js for lightweight interactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 dynamic-pricing-page" x-data="simulator()">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="bg-brand-600 text-white p-2 rounded-lg font-bold text-xl tracking-tight shadow-sm">
+                    G$
+                </div>
+                <span class="font-bold text-xl text-brand-900 tracking-tight">GlobalPay</span>
+            </div>
+            <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <a href="#features" class="hover:text-brand-600 transition">Features</a>
+                <a href="#simulator" class="hover:text-brand-600 transition">Simulator</a>
+                <a href="#pricing" class="hover:text-brand-600 transition">Transparent Pricing</a>
+            </nav>
+            <div>
+                <a href="#simulator"
+                    class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition shadow-sm block">
+                    Try Simulator
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section -->
+        <section class="py-16 lg:py-24 bg-gradient-to-b from-brand-50 to-transparent">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+                <span
+                    class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-100 text-brand-700 mb-4">
+                    <span class="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse"></span>
+                    Live Interbank Rates Integrated
+                </span>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-brand-900 mb-6">
+                    Know exactly what arrives in your bank account
+                </h1>
+                <p class="text-lg text-slate-600 mb-8 leading-relaxed">
+                    Don't get tricked by "zero fee" transfers that hide massive markups in the exchange rate. Use our
+                    simulator to reveal true network fees, real-time margins, and your absolute net payout.
+                </p>
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="#simulator"
+                        class="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white px-8 py-3.5 rounded-xl font-semibold shadow-md transition text-center">
+                        Calculate Net Payout
+                    </a>
+                    <a href="#features"
+                        class="w-full sm:w-auto bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-8 py-3.5 rounded-xl font-semibold transition text-center">
+                        See How It Works
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Simulator Application Container -->
+        <section id="simulator" class="py-12 scroll-mt-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid lg:grid-cols-12 gap-8 items-start">
+
+                    <!-- Control Panel Input -->
+                    <div class="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
+                        <h2 class="text-xl font-bold text-brand-900 mb-6">Simulation Controls</h2>
+
+                        <!-- Transfer Amount -->
+                        <div class="mb-5">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Send Amount</label>
+                            <div class="relative rounded-lg shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-slate-400 font-medium"
+                                        x-text="currencies[sourceCurrency].symbol"></span>
+                                </div>
+                                <input type="number" x-model.number="sendAmount" @input="calculatePayout()" min="10"
+                                    max="1000000"
+                                    class="block w-full pl-8 pr-16 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-600 focus:border-brand-600 text-lg font-semibold bg-slate-50/50">
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                    <select x-model="sourceCurrency" @change="updateTargetOptions(); calculatePayout()"
+                                        class="h-full bg-transparent border-transparent text-slate-500 font-semibold focus:ring-0 rounded-md">
+                                        <template x-for="(curr, code) in currencies" :key="code">
+                                            <option :value="code" x-text="code"></option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Target Currency -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Recipient Currency</label>
+                            <div class="relative rounded-lg shadow-sm">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <span class="text-slate-400 font-medium"
+                                        x-text="currencies[targetCurrency].symbol"></span>
+                                </div>
+                                <select x-model="targetCurrency" @change="calculatePayout()"
+                                    class="block w-full pl-8 pr-10 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-600 focus:border-brand-600 text-lg font-semibold bg-slate-50/50 appearance-none">
+                                    <template x-for="code in availableTargets" :key="code">
+                                        <option :value="code" x-text="`${code} - ${currencies[code].name}`"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Provider Tier / Pricing Model Selector -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Provider Pricing
+                                Profile</label>
+                            <div class="grid grid-cols-2 gap-3">
+                                <template x-for="(tier, key) in tiers" :key="key">
+                                    <button @click="selectedTier = key; calculatePayout()"
+                                        :class="selectedTier === key ? 'border-brand-600 ring-2 ring-brand-100 bg-brand-50/30 text-brand-900' : 'border-slate-200 hover:bg-slate-50 text-slate-600'"
+                                        class="p-3 border rounded-xl text-left transition focus:outline-none">
+                                        <div class="font-semibold text-sm" x-text="tier.name"></div>
+                                        <div class="text-xs text-slate-500 mt-0.5"
+                                            x-text="`Markup: ${tier.margin}% + Flat: $${tier.flatFee}`"></div>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Micro-adjustments sliders -->
+                        <div class="space-y-4 pt-4 border-t border-slate-100">
+                            <div>
+                                <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                                    <span>Custom Variable Markup</span>
+                                    <span class="font-semibold text-brand-600"
+                                        x-text="customMargin.toFixed(2) + '%'"></span>
+                                </div>
+                                <input type="range" min="0" max="5" step="0.05" x-model.number="customMargin"
+                                    @input="selectedTier = 'custom'; calculatePayout()" class="w-full accent-brand-600">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-medium text-slate-500 mb-1">
+                                    <span>Custom Fixed Intermediary Fee</span>
+                                    <span class="font-semibold text-brand-600"
+                                        x-text="`$${customFlat.toFixed(2)}`"></span>
+                                </div>
+                                <input type="range" min="0" max="50" step="1" x-model.number="customFlat"
+                                    @input="selectedTier = 'custom'; calculatePayout()" class="w-full accent-brand-600">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Output Dynamic Dashboard Visualization -->
+                    <div class="lg:col-span-7 space-y-6">
+                        <!-- Main Metric Card -->
+                        <div
+                            class="bg-gradient-to-br from-brand-900 to-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-md relative overflow-hidden">
+                            <div class="absolute right-0 bottom-0 translate-x-10 translate-y-10 opacity-10">
+                                <svg width="240" height="240" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.25z" />
+                                </svg>
+                            </div>
+                            <div class="relative z-10">
+                                <span
+                                    class="text-xs uppercase font-bold tracking-wider text-brand-100/70 block mb-1">Guaranteed
+                                    Net Take-Home Payout</span>
+                                <div class="text-4xl sm:text-5xl font-extrabold tracking-tight"
+                                    x-text="formatCurrency(netPayout, targetCurrency)"></div>
+                                <p class="text-brand-100/80 text-xs mt-3 flex items-center gap-1">
+                                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                                        </path>
+                                    </svg>
+                                    All hidden corridors, processing nodes, and FX conversion spreads calculated.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Line Items breakdown / Waterfall logic -->
+                        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                            <h3 class="font-bold text-slate-800 text-base border-b border-slate-100 pb-3">Simulation
+                                Waterfall Breakdown</h3>
+
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-500">Initial Send Volume</span>
+                                <span class="font-semibold text-slate-800"
+                                    x-text="formatCurrency(sendAmount, sourceCurrency)"></span>
+                            </div>
+
+                            <div
+                                class="flex justify-between items-center text-sm bg-amber-50/50 px-3 py-2 rounded-lg border border-amber-100/50">
+                                <div class="flex items-center gap-1.5 text-amber-800">
+                                    <span>Total Operational Deductions</span>
+                                    <span class="text-xs text-amber-600"
+                                        x-text="`(${currentProfile.margin}% spread + fees)`"></span>
+                                </div>
+                                <span class="font-semibold text-amber-700"
+                                    x-text="`-${formatCurrency(totalDeductionsSource, sourceCurrency)}`"></span>
+                            </div>
+
+                            <div class="flex justify-between items-center text-sm">
+                                <span class="text-slate-500">Net Convertible Principal Amount</span>
+                                <span class="font-semibold text-slate-800"
+                                    x-text="formatCurrency(convertibleAmount, sourceCurrency)"></span>
+                            </div>
+
+                            <div
+                                class="flex justify-between items-center text-sm py-2 bg-slate-50 rounded-xl px-3 border border-slate-100">
+                                <span class="text-slate-600 font-medium">Real-Time Wholesale FX Rate</span>
+                                <div class="text-right">
+                                    <span class="font-bold text-brand-600"
+                                        x-text="`1 ${sourceCurrency} = ${fxRate.toFixed(4)} ${targetCurrency}`"></span>
+                                    <span class="block text-[10px] text-slate-400">Mid-market feed standard</span>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center text-sm pt-2 border-t border-slate-100">
+                                <span class="text-slate-900 font-bold">Absolute Yield Gross Outflow</span>
+                                <span class="font-bold text-slate-900"
+                                    x-text="formatCurrency(netPayout, targetCurrency)"></span>
+                            </div>
+                        </div>
+
+                        <!-- Efficiency score advisory badge -->
+                        <div class="p-4 rounded-xl border flex items-start gap-3"
+                            :class="efficiencyScore > 98 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : efficiencyScore > 95 ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-rose-50 border-rose-200 text-rose-800'">
+                            <div class="p-1 rounded-lg bg-white shadow-sm mt-0.5">
+                                <template x-if="efficiencyScore > 98">
+                                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </template>
+                                <template x-if="efficiencyScore <= 98 && efficiencyScore > 95">
+                                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </template>
+                                <template x-if="efficiencyScore <= 95">
+                                    <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                                        </path>
+                                    </svg>
+                                </template>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm"
+                                    x-text="`Corridor Efficiency Index: ${efficiencyScore.toFixed(1)}%`"></h4>
+                                <p class="text-xs opacity-90 mt-0.5" x-text="efficiencyMessage"></p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Value Proposition / Product Explainer Grid -->
+        <section id="features" class="py-16 bg-white border-y border-slate-200 scroll-mt-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto mb-12">
+                    <h2 class="text-3xl font-bold tracking-tight text-brand-900">Why transparency dictates your
+                        performance yield</h2>
+                    <p class="text-slate-600 mt-2">Cross-border capital velocity relies entirely on tracking small
+                        fractional leakages.</p>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-8">
+                    <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div
+                            class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold mb-4">
+                            01</div>
+                        <h3 class="font-bold text-lg text-slate-900 mb-2">Interbank Rate Matching</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">We sync with real-time institutional wholesale
+                            trading books, providing true parity pricing instead of consumer retail card markup metrics.
+                        </p>
+                    </div>
+                    <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div
+                            class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold mb-4">
+                            02</div>
+                        <h3 class="font-bold text-lg text-slate-900 mb-2">Decoupled Network Audits</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">Isolate routing switch costs directly from
+                            localized fixed settlement clearing surcharges, stopping cascading mid-route billing
+                            inflation.</p>
+                    </div>
+                    <div class="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div
+                            class="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center text-white font-bold mb-4">
+                            03</div>
+                        <h3 class="font-bold text-lg text-slate-900 mb-2">Predictive Pipeline Delivery</h3>
+                        <p class="text-slate-600 text-sm leading-relaxed">Our execution engines calculate settlement
+                            time risks dynamically to lock your simulated conversion point safely against volatility.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer Area -->
+    <footer class="bg-slate-900 text-slate-400 py-12 text-sm">
+        <div
+            class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-800 pb-8">
+            <div class="flex items-center gap-2">
+                <div class="bg-brand-600 text-white p-1.5 rounded font-bold text-md">G$</div>
+                <span class="font-bold text-white tracking-tight text-base">GlobalPay</span>
+            </div>
+            <div class="flex gap-6 text-slate-400">
+                <a href="#" class="hover:text-white transition">Privacy Architecture</a>
+                <a href="#" class="hover:text-white transition">Liquidity Policies</a>
+                <a href="#" class="hover:text-white transition">Developer API Docs</a>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 text-center md:text-left text-xs text-slate-500">
+            <p>© 2026 GlobalPay Technologies Inc. Global financial simulations provided are using true historical
+                indices combined with dynamic interbank spread algorithms for informational modeling purposes.</p>
+        </div>
+    </footer>
+
+    <!-- App State Controller and Mathematical Logic Layer -->
+    <script>
+        function simulator() {
+            return {
+                // Application Data State
+                sendAmount: 5000,
+                sourceCurrency: 'USD',
+                targetCurrency: 'EUR',
+                selectedTier: 'interbank',
+                customMargin: 1.50,
+                customFlat: 15.00,
+
+                // Calculated Values Shared across components
+                fxRate: 0.9215,
+                netPayout: 0,
+                convertibleAmount: 0,
+                totalDeductionsSource: 0,
+                efficiencyScore: 100,
+                efficiencyMessage: '',
+
+                // Available Currencies Matrix & Structural Mapping
+                currencies: {
+                    USD: { name: 'US Dollar', symbol: '$', rateToBase: 1.0 },
+                    EUR: { name: 'Euro', symbol: '€', rateToBase: 1.085 },
+                    GBP: { name: 'British Pound', symbol: '£', rateToBase: 1.272 },
+                    JPY: { name: 'Japanese Yen', symbol: '¥', rateToBase: 0.0064 },
+                    AUD: { name: 'Australian Dollar', symbol: 'A$', rateToBase: 0.665 },
+                    CAD: { name: 'Canadian Dollar', symbol: 'C$', rateToBase: 0.732 }
+                },
+
+                // Preset profiles based on industry telemetry observations
+                tiers: {
+                    interbank: { name: 'GlobalPay True Rate', margin: 0.15, flatFee: 3.00 },
+                    standard_bank: { name: 'Legacy Retail Bank', margin: 3.50, flatFee: 25.00 },
+                    fintech_app: { name: 'Average Neo-Bank', margin: 0.95, flatFee: 5.00 },
+                    custom: { name: 'Custom Simulation', margin: 0, flatFee: 0 }
+                },
+
+                availableTargets: [],
+
+                // Initializer Lifecycle Method
+                init() {
+                    this.updateTargetOptions();
+                    this.calculatePayout();
+                },
+
+                // Filters currency options dynamically to prevent identical currency pairs
+                updateTargetOptions() {
+                    this.availableTargets = Object.keys(this.currencies).filter(code => code !== this.sourceCurrency);
+                    if (this.sourceCurrency === this.targetCurrency) {
+                        this.targetCurrency = this.availableTargets[0];
+                    }
+                },
+
+                // Real-time calculation parsing core engine
+                calculatePayout() {
+                    // Safety guard boundaries
+                    if (!this.sendAmount || this.sendAmount < 0) {
+                        this.netPayout = 0;
+                        this.convertibleAmount = 0;
+                        this.totalDeductionsSource = 0;
+                        this.efficiencyScore = 0;
+                        this.efficiencyMessage = 'Please input a valid transfer volume amount.';
+                        return;
+                    }
+
+                    // Compute dynamic FX cross rate via virtual base conversion layer
+                    const sourceToBase = this.currencies[this.sourceCurrency].rateToBase;
+                    const targetToBase = this.currencies[this.targetCurrency].rateToBase;
+                    this.fxRate = sourceToBase / targetToBase;
+
+                    // Derive parameters based on pricing profiles selected
+                    let currentMargin = 0;
+                    let currentFlatFeeUSD = 0;
+
+                    if (this.selectedTier === 'custom') {
+                        currentMargin = this.customMargin;
+                        // Transform the user flat currency amount input back to absolute local source currency valuation equivalents
+                        currentFlatFeeUSD = this.customFlat * (1 / sourceToBase);
+                    } else {
+                        const profile = this.tiers[this.selectedTier];
+                        currentMargin = profile.margin;
+                        currentFlatFeeUSD = profile.flatFee;
+                        // Synchronize manual sliders to match matching tier elements visually
+                        this.customMargin = profile.margin;
+                        this.customFlat = profile.flatFee * sourceToBase;
+                    }
+
+                    // Compute Deductions directly out of source volume pool tracking
+                    const variableFee = this.sendAmount * (currentMargin / 100);
+                    const flatFeeSource = currentFlatFeeUSD * sourceToBase;
+
+                    this.totalDeductionsSource = variableFee + flatFeeSource;
+
+                    // Safety protection boundary logic check
+                    if (this.totalDeductionsSource >= this.sendAmount) {
+                        this.convertibleAmount = 0;
+                        this.netPayout = 0;
+                        this.efficiencyScore = 0;
+                        this.efficiencyMessage = 'Operational transactional overhead fees exceed complete transfer value size.';
+                        return;
+                    }
+
+                    this.convertibleAmount = this.sendAmount - this.totalDeductionsSource;
+
+                    // Final payload settlement product output calculation
+                    this.netPayout = this.convertibleAmount * this.fxRate;
+
+                    // Compute efficiency rating score metric
+                    const theoreticalMaxPayout = this.sendAmount * this.fxRate;
+                    this.efficiencyScore = (this.netPayout / theoreticalMaxPayout) * 100;
+
+                    // Construct advisor message context
+                    if (this.efficiencyScore > 98) {
+                        this.efficiencyMessage = "Highly optimized corridor execution. Capital attrition vectors are strictly suppressed.";
+                    } else if (this.efficiencyScore > 95) {
+                        this.efficiencyMessage = "Acceptable parameters, but optimization vectors exist. Audit your counterparty execution pipelines.";
+                    } else {
+                        this.efficiencyMessage = "Sub-optimal capital transfer. High variable margins are creating critical capital leaks.";
+                    }
+                },
+
+                // Compute Helper for profile indicators 
+                get currentProfile() {
+                    if (this.selectedTier === 'custom') {
+                        return { margin: this.customMargin.toFixed(2), flatFee: this.customFlat.toFixed(2) };
+                    }
+                    return this.tiers[this.selectedTier];
+                },
+
+                // Multi-currency formatter engine
+                formatCurrency(val, currencyCode) {
+                    const symbol = this.currencies[currencyCode]?.symbol || '';
+                    return `${symbol}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
