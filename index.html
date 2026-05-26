@@ -402,23 +402,32 @@
 
                 // Initializer Lifecycle Method
                 init() {
-                    // 1. Pull any saved currency selections or amounts from browser memory
+                    // 1. Build the dynamic currency list options first
+                    this.updateTargetOptions();
+
+                    // 2. Pull any saved currency selections or amounts from browser memory
                     const savedAmount = localStorage.getItem('globalpay_sendAmount');
                     const savedSource = localStorage.getItem('globalpay_sourceCurrency');
                     const savedTarget = localStorage.getItem('globalpay_targetCurrency');
 
-                    // 2. If they exist, apply them to your active data model state
+                    // 3. Apply them to your active data model state safely
                     if (savedAmount) this.sendAmount = savedAmount;
                     if (savedSource) this.sourceCurrency = savedSource;
-                    if (savedTarget) this.targetCurrency = savedTarget;
 
-                    // 3. Execute your original core initialization sequence
-                    this.updateTargetOptions(); //
-                    this.calculatePayout();     //
+                    // Crucial: Only assign the target if it actually exists in the freshly built options array
+                    if (savedTarget && this.availableTargets.includes(savedTarget)) {
+                        this.targetCurrency = savedTarget;
+                    }
 
-                    // 4. Set up auto-saving watchers to monitor any input changes going forward
+                    // 4. Run the final mathematics processing routine
+                    this.calculatePayout();
+
+                    // 5. Set up auto-saving watchers to monitor any input changes going forward
                     this.$watch('sendAmount', value => localStorage.setItem('globalpay_sendAmount', value));
-                    this.$watch('sourceCurrency', value => localStorage.setItem('globalpay_sourceCurrency', value));
+                    this.$watch('sourceCurrency', value => {
+                        localStorage.setItem('globalpay_sourceCurrency', value);
+                        this.updateTargetOptions(); // Keep list updated if source drops down changes
+                    });
                     this.$watch('targetCurrency', value => localStorage.setItem('globalpay_targetCurrency', value));
                 },
 
