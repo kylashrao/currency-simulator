@@ -383,6 +383,7 @@
                 currencies: {
                     USD: { name: 'US Dollar', symbol: '$', rateToBase: 1.0 },
                     EUR: { name: 'Euro', symbol: '€', rateToBase: 1.085 },
+                    INR: { name: 'Indian Rupee', symbol: '₹', rateToBase: 0.012 }, // Added INR for emerging market corridor
                     GBP: { name: 'British Pound', symbol: '£', rateToBase: 1.272 },
                     JPY: { name: 'Japanese Yen', symbol: '¥', rateToBase: 0.0064 },
                     AUD: { name: 'Australian Dollar', symbol: 'A$', rateToBase: 0.665 },
@@ -401,8 +402,24 @@
 
                 // Initializer Lifecycle Method
                 init() {
-                    this.updateTargetOptions();
-                    this.calculatePayout();
+                    // 1. Pull any saved currency selections or amounts from browser memory
+                    const savedAmount = localStorage.getItem('globalpay_sendAmount');
+                    const savedSource = localStorage.getItem('globalpay_sourceCurrency');
+                    const savedTarget = localStorage.getItem('globalpay_targetCurrency');
+
+                    // 2. If they exist, apply them to your active data model state
+                    if (savedAmount) this.sendAmount = savedAmount;
+                    if (savedSource) this.sourceCurrency = savedSource;
+                    if (savedTarget) this.targetCurrency = savedTarget;
+
+                    // 3. Execute your original core initialization sequence
+                    this.updateTargetOptions(); //
+                    this.calculatePayout();     //
+
+                    // 4. Set up auto-saving watchers to monitor any input changes going forward
+                    this.$watch('sendAmount', value => localStorage.setItem('globalpay_sendAmount', value));
+                    this.$watch('sourceCurrency', value => localStorage.setItem('globalpay_sourceCurrency', value));
+                    this.$watch('targetCurrency', value => localStorage.setItem('globalpay_targetCurrency', value));
                 },
 
                 // Filters currency options dynamically to prevent identical currency pairs
