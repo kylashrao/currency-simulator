@@ -402,33 +402,60 @@
 
                 availableTargets: [],
 
-                // Initializer Lifecycle Method
-                init() {
-                    // 1. Build the dynamic currency list options first
+                // Initializer Lifecycle Method (With Live FX API Feed)
+                async init() {
+                    // 1. Build initial target currency list arrays
                     this.updateTargetOptions();
 
-                    // 2. Pull any saved currency selections or amounts from browser memory
+                    // 2. Fetch True Real-Time Wholesale Mid-Market Rates from API
+                    try {
+                        // Request rate data relative to USD base anchor
+                        const response = await fetch('https://api.frankfurter.app/latest?base=USD');
+                        if (!response.ok) throw new Error('Network rates feed unreachable');
+
+                        const data = await response.json();
+
+                        // Map incoming live data directly into your active currencies matrix array
+                        if (data && data.rates) {
+                            // Loop over currencies to update rateToBase based on USD root conversions
+                            Object.keys(this.currencies).forEach(code => {
+                                if (code === 'USD') {
+                                    this.currencies[code].rateToBase = 1.0;
+                                } else if (data.rates[code]) {
+                                    // API returns units per 1 USD (e.g., USD to INR = 83.33)
+                                    // Your calculator uses 'rateToBase' multiplier logic, so we translate:
+                                    this.currencies[code].rateToBase = 1 / data.rates[code];
+                                }
+                            });
+                            console.log("Live exchange rates successfully synchronized via Frankfurter API.");
+                        }
+                    } catch (error) {
+                        // Fallback failsafe mechanism: App keeps using hardcoded matrix parameters seamlessly
+                        console.warn("API Sync failure. Defaulting calculation matrix to static failsafe arrays:", error);
+                    }
+
+                    // 3. Pull any saved currency selections or amounts from browser memory
                     const savedAmount = localStorage.getItem('globalpay_sendAmount');
                     const savedSource = localStorage.getItem('globalpay_sourceCurrency');
                     const savedTarget = localStorage.getItem('globalpay_targetCurrency');
 
-                    // 3. Apply them to your active data model state safely
+                    // 4. Apply them to your active data model state safely
                     if (savedAmount) this.sendAmount = savedAmount;
                     if (savedSource) this.sourceCurrency = savedSource;
 
-                    // Crucial: Only assign the target if it actually exists in the freshly built options array
+                    // Only assign the target if it actually exists in the options array
                     if (savedTarget && this.availableTargets.includes(savedTarget)) {
                         this.targetCurrency = savedTarget;
                     }
 
-                    // 4. Run the final mathematics processing routine
+                    // 5. Run the final mathematics processing routine using live numbers!
                     this.calculatePayout();
 
-                    // 5. Set up auto-saving watchers to monitor any input changes going forward
+                    // 6. Set up auto-saving watchers to monitor any input changes going forward
                     this.$watch('sendAmount', value => localStorage.setItem('globalpay_sendAmount', value));
                     this.$watch('sourceCurrency', value => {
                         localStorage.setItem('globalpay_sourceCurrency', value);
-                        this.updateTargetOptions(); // Keep list updated if source drops down changes
+                        this.updateTargetOptions();
                     });
                     this.$watch('targetCurrency', value => localStorage.setItem('globalpay_targetCurrency', value));
                 },
