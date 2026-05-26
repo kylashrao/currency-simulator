@@ -408,26 +408,26 @@
                     this.updateTargetOptions();
 
                     // 2. Fetch True Real-Time Wholesale Mid-Market Rates from API
+                    // 2. Fetch True Real-Time Wholesale Mid-Market Rates from API
                     try {
-                        // Request rate data relative to USD base anchor
-                        const response = await fetch('https://api.frankfurter.app/latest?base=USD');
+                        // Using an open cross-origin public feed to bypass CORS limitations completely
+                        const response = await fetch('https://open.er-api.com/v6/latest/USD');
                         if (!response.ok) throw new Error('Network rates feed unreachable');
 
                         const data = await response.json();
 
                         // Map incoming live data directly into your active currencies matrix array
                         if (data && data.rates) {
-                            // Loop over currencies to update rateToBase based on USD root conversions
                             Object.keys(this.currencies).forEach(code => {
                                 if (code === 'USD') {
                                     this.currencies[code].rateToBase = 1.0;
                                 } else if (data.rates[code]) {
-                                    // API returns units per 1 USD (e.g., USD to INR = 83.33)
-                                    // Your calculator uses 'rateToBase' multiplier logic, so we translate:
+                                    // The standard API returns base units per 1 USD (e.g., INR: 83.29)
+                                    // Since your calculator scales dynamically via rateToBase multiplier conversion layers:
                                     this.currencies[code].rateToBase = 1 / data.rates[code];
                                 }
                             });
-                            console.log("Live exchange rates successfully synchronized via Frankfurter API.");
+                            console.log("Live exchange rates successfully synchronized via Open Exchange Rate Engine.");
                         }
                     } catch (error) {
                         // Fallback failsafe mechanism: App keeps using hardcoded matrix parameters seamlessly
