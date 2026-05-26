@@ -467,12 +467,48 @@
                         // Transform the user flat currency amount input back to absolute local source currency valuation equivalents
                         currentFlatFeeUSD = this.customFlat * (1 / sourceToBase);
                     } else {
+                        // ==========================================
+                        // DYNAMIC TIERED FEE VARIATION ENGINE
+                        // ==========================================
+                        const amount = parseFloat(this.sendAmount) || 0;
                         const profile = this.tiers[this.selectedTier];
+
+                        // Default to the preset profile values as the baseline
                         currentMargin = profile.margin;
                         currentFlatFeeUSD = profile.flatFee;
+
+                        // 1. Dynamic scale rules for Legacy Retail Bank
+                        if (this.selectedTier === 'standard_bank') {
+                            if (amount < 2000) {
+                                currentMargin = 4.50;  // Penalty fee for low retail volumes
+                                currentFlatFeeUSD = 25.00;
+                            } else if (amount >= 10000) {
+                                currentMargin = 2.20;  // High-volume corporate discount
+                                currentFlatFeeUSD = 15.00;
+                            }
+                        }
+
+                        // 2. Dynamic scale rules for Average Neo-Bank
+                        if (this.selectedTier === 'fintech_app') {
+                            if (amount < 1500) {
+                                currentMargin = 1.45;  // Higher cost for micro-transfers
+                            } else if (amount >= 15000) {
+                                currentMargin = 0.65;  // Volume discount
+                                currentFlatFeeUSD = 2.00;
+                            }
+                        }
+
+                        // 3. Dynamic scale rules for GlobalPay True Rate
+                        if (this.selectedTier === 'interbank') {
+                            if (amount >= 10000) {
+                                currentMargin = 0.05;  // Raw interbank wholesale access at scale
+                                currentFlatFeeUSD = 0.00; // Zero out flat fees completely
+                            }
+                        }
+
                         // Synchronize manual sliders to match matching tier elements visually
-                        this.customMargin = profile.margin;
-                        this.customFlat = profile.flatFee * sourceToBase;
+                        this.customMargin = currentMargin;
+                        this.customFlat = currentFlatFeeUSD * sourceToBase;
                     }
 
                     // Compute Deductions directly out of source volume pool tracking
@@ -509,12 +545,17 @@
                     }
                 },
 
-                // Compute Helper for profile indicators 
+                // Compute Helper for profile indicators (Updated to show real-time dynamic changes)
                 get currentProfile() {
                     if (this.selectedTier === 'custom') {
                         return { margin: this.customMargin.toFixed(2), flatFee: this.customFlat.toFixed(2) };
                     }
-                    return this.tiers[this.selectedTier];
+
+                    // Call calculations natively to return live values directly to your interactive UI cards
+                    return {
+                        margin: this.customMargin,
+                        flatFee: (this.customFlat / this.currencies[this.sourceCurrency].rateToBase)
+                    };
                 },
 
                 // Multi-currency formatter engine
