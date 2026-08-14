@@ -1,0 +1,212 @@
+/* chatbot.css - GlobalPay AI Assistant Styling */
+
+/* Floating Widget Launcher Button */
+#gp-chat-launcher {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #0f172a;
+    color: #38bdf8;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    z-index: 9999;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+#gp-chat-launcher:hover {
+    transform: scale(1.08);
+    background: #1e293b;
+    border-color: #0284c7;
+}
+
+/* Main Chat Popover Window */
+#gp-chat-window {
+    position: fixed;
+    bottom: 92px;
+    right: 24px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 520px;
+    max-height: calc(100vh - 120px);
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 16px;
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 9999;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#gp-chat-window.gp-hidden {
+    display: none !important;
+}
+
+/* Header */
+.gp-chat-header {
+    background: #1e293b;
+    padding: 14px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #334155;
+}
+
+.gp-chat-header h4 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gp-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.gp-chat-close {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.gp-chat-close:hover {
+    color: #f8fafc;
+    background: #334155;
+}
+
+/* Chat Messages Body */
+.gp-chat-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #0f172a;
+}
+
+/* Custom Scrollbar */
+.gp-chat-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.gp-chat-body::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+}
+
+/* Message Bubbles */
+.gp-msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.gp-msg-user {
+    align-self: flex-end;
+    background: #0284c7;
+    color: #ffffff;
+    border-bottom-right-radius: 2px;
+}
+
+.gp-msg-bot {
+    align-self: flex-start;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-bottom-left-radius: 2px;
+}
+
+/* Suggestion Chips */
+.gp-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.gp-chip {
+    background: #1e293b;
+    border: 1px solid #38bdf8;
+    color: #38bdf8;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.gp-chip:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+/* Footer & Input Controls */
+.gp-chat-footer {
+    padding: 12px;
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    display: flex;
+    gap: 8px;
+}
+
+.gp-chat-input {
+    flex: 1;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    padding: 9px 12px;
+    border-radius: 8px;
+    outline: none;
+    font-size: 13.5px;
+    transition: border-color 0.2s ease;
+}
+
+.gp-chat-input:focus {
+    border-color: #38bdf8;
+}
+
+.gp-chat-send {
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 13.5px;
+    transition: background 0.2s ease;
+}
+
+.gp-chat-send:hover {
+    background: #0369a1;
+}
