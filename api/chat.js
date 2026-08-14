@@ -68,9 +68,9 @@ Tone & Style Guidelines:
             parts: [{ text: msg.content }]
         }));
 
-        // Query Gemini SSE streaming endpoint using gemini-2.5-flash
+        // Query Gemini SSE streaming endpoint using gemini-3.5-flash
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
             {
                 method: 'POST',
                 headers: {
