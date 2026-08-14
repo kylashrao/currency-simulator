@@ -16,7 +16,17 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { messages } = req.body || {};
+    // Parse request body safely
+    let body = req.body;
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body);
+        } catch (e) {
+            return res.status(400).json({ error: 'Invalid JSON payload in request body.' });
+        }
+    }
+
+    const { messages } = body || {};
     if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: 'Invalid or missing messages array.' });
     }
@@ -63,10 +73,13 @@ Tone & Style Guidelines:
 
         // Query Gemini SSE streaming endpoint
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`,
             {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey.trim()
+                },
                 body: JSON.stringify({
                     system_instruction: { parts: [{ text: systemInstruction }] },
                     contents: contents
@@ -76,8 +89,8 @@ Tone & Style Guidelines:
 
         if (!response.ok) {
             const errData = await response.text();
-            console.error('Gemini API Error:', errData);
-            res.write(`data: ${JSON.stringify({ error: "Failed to connect to AI engine." })}\n\n`);
+            console.error(`Gemini API Error (${response.status}):`, errData);
+            res.write(`data: ${JSON.stringify({ error: `AI Engine connection failed (${response.status}).` })}\n\n`);
             return res.end();
         }
 
@@ -107,6 +120,22 @@ Tone & Style Guidelines:
                     } catch (e) {
                         // Skip partial JSON chunks
                     }
+                }
+            }
+        }
+
+        // Flush any remaining line in buffer
+        if (buffer.startsWith('data: ')) {
+            const jsonStr = buffer.replace('data: ', '').trim();
+            if (jsonStr) {
+                try {
+                    const parsed = JSON.parse(jsonStr);
+                    const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (textChunk) {
+                        res.write(`data: ${JSON.stringify({ text: textChunk })}\n\n`);
+                    }
+                } catch (e) {
+                    // Ignore partial trailing JSON
                 }
             }
         }
