@@ -1,4 +1,4 @@
-// api/chat.js
+// api/chat.js - GlobalPay Backend Proxy
 export default async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -11,12 +11,10 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    // Ensure request method is POST
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Safely parse JSON body if needed
     let body = req.body;
     if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch (e) { }
@@ -43,40 +41,24 @@ export default async function handler(req, res) {
 Your goal is to assist users with questions about cross-border payment flows, mid-market FX exchange rates, hidden banking markups, wire transfer fees, and how to operate the GlobalPay simulator.
 
 Key Knowledge Base:
-- Platform Overview: GlobalPay Simulator is a free, data-driven financial utility designed for global freelancers, remote workers, and contractors to calculate true net take-home payouts by exposing hidden FX markup rates and intermediary fees.
-- Simulator Functionality:
-  * Send Volume & Currency Pair inputs.
-  * Custom Variable Markup (%) & Fixed Intermediary Fee controls.
-  * Simulation Waterfall Breakdown: Shows Initial Send Volume, Total Operational Deductions, Net Convertible Principal Amount, Wholesale FX Rate, and Net Take-Home Payout.
-- Core Financial Concepts:
-  * Interbank Mid-Market Rate: The midpoint wholesale exchange rate without retail markups.
-  * Hidden Markups: Legacy banks and retail processors often advertise "zero fees" while sneaking in 1% to 5% markups on exchange rates.
-- Available Blog Guides:
-  * Wire Transfers (/blog/wire-transfers.html)
-  * Foreign Currency Volatility (/blog/currency-volatility.html)
-  * Neobanks vs. Legacy Retail Banks (/blog/neobanks-vs-retail.html)
+- Platform Overview: GlobalPay Simulator calculates true net take-home payouts by exposing hidden FX markup rates and intermediary fees.
 - Support Email: kylash.rao@gmail.com
 
 Tone & Style Guidelines:
 - Direct, concise, helpful, and transparent.
-- Use clear markdown formatting (bolding, bullet points) for readability.`;
+- Avoid markdown headers; keep answers concise for easy reading.`;
 
     try {
-        // Format conversation history for Gemini API
         const contents = messages.map(msg => ({
             role: msg.role === 'user' ? 'user' : 'model',
             parts: [{ text: msg.content }]
         }));
 
-        // Query Gemini SSE streaming endpoint using gemini-3.5-flash
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`,
             {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': apiKey
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     systemInstruction: { parts: [{ text: systemInstruction }] },
                     contents: contents
@@ -87,14 +69,7 @@ Tone & Style Guidelines:
         if (!response.ok) {
             const errText = await response.text();
             console.error(`Gemini API Error (${response.status}):`, errText);
-            let detail = `HTTP ${response.status}`;
-            try {
-                const parsed = JSON.parse(errText);
-                if (parsed.error && parsed.error.message) {
-                    detail = parsed.error.message;
-                }
-            } catch (e) { }
-            res.write(`data: ${JSON.stringify({ error: `Google API Error (${response.status}): ${detail}` })}\n\n`);
+            res.write(`data: ${JSON.stringify({ error: `Google API Error (${response.status})` })}\n\n`);
             return res.end();
         }
 
@@ -121,14 +96,11 @@ Tone & Style Guidelines:
                         if (textChunk) {
                             res.write(`data: ${JSON.stringify({ text: textChunk })}\n\n`);
                         }
-                    } catch (e) {
-                        // Skip partial JSON chunks
-                    }
+                    } catch (e) { }
                 }
             }
         }
 
-        // Stream completion signal
         res.write('data: [DONE]\n\n');
         res.end();
     } catch (err) {
