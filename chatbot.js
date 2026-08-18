@@ -6,7 +6,7 @@
     let isProcessing = false;
 
     // 1. SET YOUR API KEY HERE
-    //const GEMINI_API_KEY = "AIzaSyD8WjP2A52NmWI3rJoXOT2QMWnbji4ZpWQ";
+    //const GEMINI_API_KEY = "AIzaS_YOUR_API_LEY_GOES_HERE";
 
     // Web Speech API Setup
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

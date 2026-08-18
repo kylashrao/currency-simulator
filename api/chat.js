@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
     const apiKey = (process.env.GEMINI_API_KEY || '').trim();
     if (!apiKey) {
-        return res.status(500).json({ error: 'GEMINI_API_KEY environment variable is missing on Vercel.' });
+        return res.status(200).json({ text: 'Error: GEMINI_API_KEY environment variable is missing in Vercel settings.' });
     }
 
     const rawHistory = body?.chatHistory || body?.messages || [];
@@ -71,8 +71,9 @@ Tone & Style Guidelines:
         const data = await response.json();
 
         if (!response.ok) {
-            console.error("Google API Error response:", data);
-            return res.status(response.status).json(data);
+            console.error("Google API Error:", data);
+            const detail = data.error?.message || JSON.stringify(data);
+            return res.status(200).json({ text: `Google API Error (${response.status}): ${detail}` });
         }
 
         const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
@@ -80,6 +81,6 @@ Tone & Style Guidelines:
 
     } catch (err) {
         console.error('Serverless Function Error:', err);
-        return res.status(500).json({ error: "Internal server error: " + err.message });
+        return res.status(200).json({ text: "Serverless Function Exception: " + err.message });
     }
 }
