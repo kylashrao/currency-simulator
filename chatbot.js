@@ -4,12 +4,8 @@
     let currentAgent = 'Chatbot';
     let isListening = false;
     let isProcessing = false;
-    let activeEndpoint = null; // Auto-resolved endpoint URL
 
-    // 1. SET YOUR API KEY HERE
-    //const GEMINI_API_KEY = "AIzaS_API_KEY_HERE";
-
-    // 2. Web Speech API Setup
+    // 1. Web Speech API Setup
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
 
@@ -38,14 +34,11 @@
         recognition.onend = () => resetMicUI();
     }
 
-    // 1. Keep a global variable reference to prevent Safari Garbage Collection
     let activeUtterance = null;
 
-    // 2. Helper to unlock Safari speech playback during active user gesture
     function unlockSpeechEngine() {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.resume();
-            // Play an empty silent utterance to register user interaction permission
             const dummy = new SpeechSynthesisUtterance('');
             dummy.volume = 0;
             window.speechSynthesis.speak(dummy);
@@ -55,25 +48,21 @@
     function speak(text) {
         if (!('speechSynthesis' in window)) return;
 
-        // Force speech synthesis out of paused/suspended state after network fetch
         window.speechSynthesis.resume();
-        window.speechSynthesis.cancel(); // Clear existing queue
+        window.speechSynthesis.cancel();
 
-        // Clean text of markdown symbols so TTS reads naturally
         const cleanText = text.replace(/[*#_`~]/g, '');
 
         activeUtterance = new SpeechSynthesisUtterance(cleanText);
         activeUtterance.rate = 1.0;
         activeUtterance.pitch = 1.0;
 
-        // Pick a natural English voice if available in browser
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
             const preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google')));
             if (preferredVoice) activeUtterance.voice = preferredVoice;
         }
 
-        // Keep reference alive until speech finishes
         activeUtterance.onend = () => { activeUtterance = null; };
         activeUtterance.onerror = () => { activeUtterance = null; };
 
@@ -101,44 +90,7 @@
         if (inputEl) inputEl.disabled = locked;
     }
 
-    // 3. Dynamic Endpoint & Model Auto-Resolver
-    async function resolveWorkingEndpoint() {
-        if (activeEndpoint) return activeEndpoint;
-
-        const apiVersions = ['v1beta', 'v1'];
-
-        for (const version of apiVersions) {
-            try {
-                const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${GEMINI_API_KEY}`;
-                const res = await fetch(listUrl);
-                const data = await res.json();
-
-                if (res.ok && data.models && data.models.length > 0) {
-                    // Find a model supporting generateContent
-                    const validModel = data.models.find(m =>
-                        m.supportedGenerationMethods?.includes('generateContent') &&
-                        (m.name.includes('flash') || m.name.includes('gemini'))
-                    );
-
-                    if (validModel) {
-                        // Extract model name format (e.g. models/gemini-1.5-flash)
-                        const fullModelName = validModel.name;
-                        activeEndpoint = `https://generativelanguage.googleapis.com/${version}/${fullModelName}:generateContent?key=${GEMINI_API_KEY}`;
-                        console.log(`Successfully connected to endpoint: ${version} / ${fullModelName}`);
-                        return activeEndpoint;
-                    }
-                }
-            } catch (e) {
-                console.warn(`Failed resolving endpoint on ${version}:`, e);
-            }
-        }
-
-        // Fallback default endpoint
-        activeEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        return activeEndpoint;
-    }
-
-    // 4. DOM Layout Insertion
+    // 2. DOM Layout Insertion
     const launcherHtml = `
     <button id="gp-chat-launcher" aria-label="Open Chat">💬</button>
     <div id="gp-chat-window" class="gp-hidden">
@@ -179,10 +131,10 @@
     const chatBody = document.getElementById('gp-chat-body');
     const voiceBtn = document.getElementById('gp-voice-btn');
 
-    // 5. Voice & Input Event Handlers
+    // 3. Event Listeners
     voiceBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        unlockSpeechEngine(); // <--- Unlock Safari TTS
+        unlockSpeechEngine();
         if (isProcessing) return;
 
         if (!recognition) {
@@ -208,7 +160,6 @@
     });
 
     inputEl.addEventListener('focus', () => {
-        // Only interrupt voice if user manually clicks into the text field while speaking
         if (currentAgent !== 'Chatbot' && !isProcessing) {
             stopActiveAudioAndVoice();
             currentAgent = 'Chatbot';
@@ -253,7 +204,7 @@
         }
     });
 
-    // 6. API Handler
+    // 4. Send Message via Backend Serverless Proxy (/api/chat)
     async function handleSend(isVoiceTriggered = false) {
         if (isProcessing) return;
 
@@ -266,7 +217,7 @@
         appendMessage(text, 'user');
         inputEl.value = '';
 
-        chatHistory.push({ role: 'user', parts: [{ text: text }] });
+        chatHistory.push({ role: 'user', content: text });
 
         const processingLabel = currentAgent === 'Voice'
             ? '🎙️ AI Voice Agent is processing...'
@@ -276,36 +227,25 @@
         const botMsgEl = document.getElementById(botMsgId);
 
         try {
-            const endpointUrl = await resolveWorkingEndpoint();
-
-            const response = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: chatHistory,
-                        system_instruction: {
-                            parts: [{ text: "You are GlobalPay Assistant. Keep responses concise, direct, and focused on exchange rates and transfers." }]
-                        }
-                    })
-                }
-            );
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: chatHistory })
+            });
 
             const data = await response.json();
 
-            if (!response.ok) {
+            if (!response.ok || data.error) {
                 chatHistory.pop();
-                console.error("API Error Response:", data);
-                botMsgEl.textContent = `API Error (${response.status}): ${data.error?.message || 'Request failed.'}`;
+                botMsgEl.textContent = data.error || `Server Error (${response.status})`;
                 return;
             }
 
-            const replyText = data.candidates[0].content.parts[0].text;
+            const replyText = data.text || data.reply || "No response received.";
             botMsgEl.textContent = replyText;
             chatBody.scrollTop = chatBody.scrollHeight;
 
-            chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
+            chatHistory.push({ role: 'assistant', content: replyText });
 
             if (currentAgent === 'Voice' || isVoiceTriggered) {
                 speak(replyText);
@@ -313,10 +253,9 @@
         } catch (err) {
             chatHistory.pop();
             console.error('Fetch Error:', err);
-            botMsgEl.textContent = 'Network error. Please check browser console.';
+            botMsgEl.textContent = 'Network error. Unable to connect to backend.';
         } finally {
             setInputLock(false);
-            // Only auto-focus text box if running in text Chatbot mode
             if (currentAgent === 'Chatbot' && inputEl) {
                 inputEl.focus();
             }
