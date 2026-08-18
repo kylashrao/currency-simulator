@@ -4,11 +4,12 @@
     let currentAgent = 'Chatbot';
     let isListening = false;
     let isProcessing = false;
+    let activeEndpoint = null; // Auto-resolved endpoint URL
 
     // 1. SET YOUR API KEY HERE
-    //const GEMINI_API_KEY = "AIzaS_YOUR_API_LEY_GOES_HERE";
+    //const GEMINI_API_KEY = "AIzaS_API_KEY_HERE";
 
-    // Web Speech API Setup
+    // 2. Web Speech API Setup
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
 
@@ -37,11 +38,14 @@
         recognition.onend = () => resetMicUI();
     }
 
+    // 1. Keep a global variable reference to prevent Safari Garbage Collection
     let activeUtterance = null;
 
+    // 2. Helper to unlock Safari speech playback during active user gesture
     function unlockSpeechEngine() {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.resume();
+            // Play an empty silent utterance to register user interaction permission
             const dummy = new SpeechSynthesisUtterance('');
             dummy.volume = 0;
             window.speechSynthesis.speak(dummy);
@@ -51,21 +55,25 @@
     function speak(text) {
         if (!('speechSynthesis' in window)) return;
 
+        // Force speech synthesis out of paused/suspended state after network fetch
         window.speechSynthesis.resume();
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel(); // Clear existing queue
 
+        // Clean text of markdown symbols so TTS reads naturally
         const cleanText = text.replace(/[*#_`~]/g, '');
 
         activeUtterance = new SpeechSynthesisUtterance(cleanText);
         activeUtterance.rate = 1.0;
         activeUtterance.pitch = 1.0;
 
+        // Pick a natural English voice if available in browser
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
             const preferredVoice = voices.find(v => v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Google')));
             if (preferredVoice) activeUtterance.voice = preferredVoice;
         }
 
+        // Keep reference alive until speech finishes
         activeUtterance.onend = () => { activeUtterance = null; };
         activeUtterance.onerror = () => { activeUtterance = null; };
 
@@ -93,7 +101,44 @@
         if (inputEl) inputEl.disabled = locked;
     }
 
-    // DOM Layout Insertion
+    // 3. Dynamic Endpoint & Model Auto-Resolver
+    async function resolveWorkingEndpoint() {
+        if (activeEndpoint) return activeEndpoint;
+
+        const apiVersions = ['v1beta', 'v1'];
+
+        for (const version of apiVersions) {
+            try {
+                const listUrl = `https://generativelanguage.googleapis.com/${version}/models?key=${GEMINI_API_KEY}`;
+                const res = await fetch(listUrl);
+                const data = await res.json();
+
+                if (res.ok && data.models && data.models.length > 0) {
+                    // Find a model supporting generateContent
+                    const validModel = data.models.find(m =>
+                        m.supportedGenerationMethods?.includes('generateContent') &&
+                        (m.name.includes('flash') || m.name.includes('gemini'))
+                    );
+
+                    if (validModel) {
+                        // Extract model name format (e.g. models/gemini-1.5-flash)
+                        const fullModelName = validModel.name;
+                        activeEndpoint = `https://generativelanguage.googleapis.com/${version}/${fullModelName}:generateContent?key=${GEMINI_API_KEY}`;
+                        console.log(`Successfully connected to endpoint: ${version} / ${fullModelName}`);
+                        return activeEndpoint;
+                    }
+                }
+            } catch (e) {
+                console.warn(`Failed resolving endpoint on ${version}:`, e);
+            }
+        }
+
+        // Fallback default endpoint
+        activeEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        return activeEndpoint;
+    }
+
+    // 4. DOM Layout Insertion
     const launcherHtml = `
     <button id="gp-chat-launcher" aria-label="Open Chat">💬</button>
     <div id="gp-chat-window" class="gp-hidden">
@@ -134,10 +179,10 @@
     const chatBody = document.getElementById('gp-chat-body');
     const voiceBtn = document.getElementById('gp-voice-btn');
 
-    // Voice & Input Event Handlers
+    // 5. Voice & Input Event Handlers
     voiceBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        unlockSpeechEngine();
+        unlockSpeechEngine(); // <--- Unlock Safari TTS
         if (isProcessing) return;
 
         if (!recognition) {
@@ -163,6 +208,7 @@
     });
 
     inputEl.addEventListener('focus', () => {
+        // Only interrupt voice if user manually clicks into the text field while speaking
         if (currentAgent !== 'Chatbot' && !isProcessing) {
             stopActiveAudioAndVoice();
             currentAgent = 'Chatbot';
@@ -207,7 +253,7 @@
         }
     });
 
-    // API Handler (Consumes SSE stream from /api/chat)
+    // 6. API Handler
     async function handleSend(isVoiceTriggered = false) {
         if (isProcessing) return;
 
@@ -220,73 +266,57 @@
         appendMessage(text, 'user');
         inputEl.value = '';
 
-        chatHistory.push({ role: 'user', content: text });
+        chatHistory.push({ role: 'user', parts: [{ text: text }] });
 
-        const botMsgId = appendMessage('...', 'bot');
+        const processingLabel = currentAgent === 'Voice'
+            ? '🎙️ AI Voice Agent is processing...'
+            : '💬 AI Chatbot Agent is processing...';
+
+        const botMsgId = appendMessage(processingLabel, 'bot');
         const botMsgEl = document.getElementById(botMsgId);
 
         try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: chatHistory })
-            });
+            const endpointUrl = await resolveWorkingEndpoint();
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: chatHistory,
+                        system_instruction: {
+                            parts: [{ text: "You are GlobalPay Assistant. Keep responses concise, direct, and focused on exchange rates and transfers." }]
+                        }
+                    })
+                }
+            );
+
+            const data = await response.json();
 
             if (!response.ok) {
                 chatHistory.pop();
-                botMsgEl.textContent = `Server Error (${response.status})`;
+                console.error("API Error Response:", data);
+                botMsgEl.textContent = `API Error (${response.status}): ${data.error?.message || 'Request failed.'}`;
                 return;
             }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedText = '';
-            let isFirstChunk = true;
+            const replyText = data.candidates[0].content.parts[0].text;
+            botMsgEl.textContent = replyText;
+            chatBody.scrollTop = chatBody.scrollHeight;
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            chatHistory.push({ role: 'model', parts: [{ text: replyText }] });
 
-                const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const jsonStr = line.replace('data: ', '').trim();
-                        if (jsonStr === '[DONE]') break;
-
-                        try {
-                            const parsed = JSON.parse(jsonStr);
-                            if (parsed.error) {
-                                botMsgEl.textContent = parsed.error;
-                                return;
-                            }
-                            if (parsed.text) {
-                                if (isFirstChunk) {
-                                    botMsgEl.textContent = '';
-                                    isFirstChunk = false;
-                                }
-                                accumulatedText += parsed.text;
-                                botMsgEl.textContent = accumulatedText;
-                                chatBody.scrollTop = chatBody.scrollHeight;
-                            }
-                        } catch (e) { }
-                    }
-                }
-            }
-
-            if (accumulatedText) {
-                chatHistory.push({ role: 'assistant', content: accumulatedText });
-                if (currentAgent === 'Voice' || isVoiceTriggered) {
-                    speak(accumulatedText);
-                }
+            if (currentAgent === 'Voice' || isVoiceTriggered) {
+                speak(replyText);
             }
         } catch (err) {
             chatHistory.pop();
             console.error('Fetch Error:', err);
-            botMsgEl.textContent = 'Network error. Please try again.';
+            botMsgEl.textContent = 'Network error. Please check browser console.';
         } finally {
             setInputLock(false);
+            // Only auto-focus text box if running in text Chatbot mode
             if (currentAgent === 'Chatbot' && inputEl) {
                 inputEl.focus();
             }
