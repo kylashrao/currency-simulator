@@ -37,50 +37,36 @@ Key Knowledge Base:
         parts: [{ text: msg.content || msg.text || '' }]
     }));
 
-    try {
-        // 1. Auto-discover active models for this API key
-        let targetModel = 'models/gemini-1.5-flash';
+    // Sequential endpoints, starting with gemini-3.6-flash
+    const modelEndpoints = [
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+    ];
 
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        if (listRes.ok) {
-            const listData = await listRes.json();
-            if (listData.models && listData.models.length > 0) {
-                const validModels = listData.models.filter(m =>
-                    m.supportedGenerationMethods?.includes('generateContent')
-                );
-                if (validModels.length > 0) {
-                    const flashModel = validModels.find(m => m.name.includes('flash'));
-                    targetModel = flashModel ? flashModel.name : validModels[0].name;
-                }
+    let lastError = null;
+
+    for (const url of modelEndpoints) {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                    contents: contents
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return res.status(200).json({ text: data.candidates[0].content.parts[0].text });
             }
+
+            lastError = data.error?.message || `HTTP ${response.status}`;
+        } catch (err) {
+            lastError = err.message;
         }
-
-        const modelPath = targetModel.startsWith('models/') ? targetModel : `models/${targetModel}`;
-
-        // 2. Query content generation with auto-discovered model
-        const generateUrl = `https://generativelanguage.googleapis.com/v1beta/${modelPath}:generateContent?key=${apiKey}`;
-
-        const response = await fetch(generateUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                systemInstruction: { parts: [{ text: systemInstruction }] },
-                contents: contents
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error(`Gemini API Error (${response.status}):`, data);
-            return res.status(200).json({ error: `Google API Error (${response.status}): ${data.error?.message || 'Request failed'}` });
-        }
-
-        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
-        return res.status(200).json({ text: replyText });
-
-    } catch (err) {
-        console.error('Serverless Function Error:', err);
-        return res.status(200).json({ error: "Internal server error: " + err.message });
     }
+
+    return res.status(200).json({ error: `Google API Error: ${lastError}` });
 }
